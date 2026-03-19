@@ -224,6 +224,41 @@
       margin-top: 18px;
     }
 
+    .export-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #fcfeff 0%, #f2f8ff 100%);
+      display: grid;
+      gap: 12px;
+    }
+
+    .export-panel h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: var(--primary-deep);
+    }
+
+    .export-panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    .export-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     button {
       border: none;
       border-radius: 12px;
@@ -412,7 +447,8 @@
 
       .teaching-box,
       .grid-fields,
-      .toggle-grid {
+      .toggle-grid,
+      .export-options {
         grid-template-columns: 1fr;
       }
     }
@@ -523,6 +559,32 @@
           <button class="btn-accent" id="exportBtn" type="button">匯出圖片</button>
         </div>
 
+        <div class="export-panel">
+          <h3>匯出設定</h3>
+          <p>可選擇匯出二次函數座標圖，或匯出函數值表格圖片；若匯出表格，也能決定是否顯示 X、Y 列標題。</p>
+          <div class="export-options">
+            <div class="field">
+              <label for="exportTypeSelect">匯出項目</label>
+              <select id="exportTypeSelect">
+                <option value="graph">二次函數圖片</option>
+                <option value="table">函數值表格圖片</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="exportTableStyleSelect">表格圖片內容</label>
+              <select id="exportTableStyleSelect">
+                <option value="current">依目前表格內容匯出</option>
+                <option value="answer">強制顯示答案</option>
+                <option value="blank">強制填空模式</option>
+              </select>
+            </div>
+          </div>
+          <div class="checkbox-row">
+            <label class="toggle"><input id="exportShowXCheckbox" type="checkbox" checked /> 表格圖片顯示 X</label>
+            <label class="toggle"><input id="exportShowYCheckbox" type="checkbox" checked /> 表格圖片顯示 Y</label>
+          </div>
+        </div>
+
         <div class="note-box" id="teachingHint"></div>
       </section>
 
@@ -587,6 +649,10 @@
     const toggleAnswerBtn = document.getElementById('toggleAnswerBtn');
     const resetBtn = document.getElementById('resetBtn');
     const exportBtn = document.getElementById('exportBtn');
+    const exportTypeSelect = document.getElementById('exportTypeSelect');
+    const exportTableStyleSelect = document.getElementById('exportTableStyleSelect');
+    const exportShowXCheckbox = document.getElementById('exportShowXCheckbox');
+    const exportShowYCheckbox = document.getElementById('exportShowYCheckbox');
     const valueTable = document.getElementById('valueTable');
     const graphCanvas = document.getElementById('graphCanvas');
     const formulaPreview = document.getElementById('formulaPreview');
@@ -728,6 +794,24 @@
           ${yCells}
         </tr>
       `;
+    }
+
+    function getExportTableRows(config, xValues, mode = 'current') {
+      const showXLabel = exportShowXCheckbox.checked;
+      const showYLabel = exportShowYCheckbox.checked;
+      const resolvedMode = mode === 'current'
+        ? (answersVisible && config.tableMode === 'answer' ? 'answer' : 'blank')
+        : mode;
+
+      return {
+        xLabel: showXLabel ? 'x' : '',
+        yLabel: showYLabel ? 'y' : '',
+        xValues: xValues.map((x) => formatNumber(x)),
+        yValues: xValues.map((x) => {
+          const y = evaluateQuadratic(x, config.a, config.h, config.k);
+          return resolvedMode === 'answer' ? formatNumber(y) : '＿＿';
+        }),
+      };
     }
 
     function getGraphBounds(config) {
@@ -985,6 +1069,89 @@
       drawVertex(config, transform);
     }
 
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function exportGraphImage() {
+      const formula = getFormulaText(safeNumber(aInput, 1), safeNumber(hInput, 0), safeNumber(kInput, 0)).replace(/\s+/g, '_');
+      downloadCanvas(graphCanvas, `quadratic-graph-${formula}.png`);
+    }
+
+    function exportTableImage(config, xValues) {
+      const rows = getExportTableRows(config, xValues, exportTableStyleSelect.value);
+      const columns = rows.xValues.length + 1;
+      const cellWidth = 92;
+      const cellHeight = 68;
+      const headerHeight = 116;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(920, columns * cellWidth + 120);
+      canvas.height = headerHeight + cellHeight * 2 + 80;
+
+      const exportCtx = canvas.getContext('2d');
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+      exportCtx.fillStyle = '#24538c';
+      exportCtx.font = '700 32px "Noto Sans TC", sans-serif';
+      exportCtx.fillText('二次函數函數值表格', 54, 56);
+
+      exportCtx.fillStyle = '#58749c';
+      exportCtx.font = '500 22px "Noto Sans TC", sans-serif';
+      exportCtx.fillText(getFormulaText(config.a, config.h, config.k), 54, 94);
+
+      const tableLeft = 54;
+      const tableTop = headerHeight;
+      const tableWidth = columns * cellWidth;
+
+      exportCtx.strokeStyle = '#cddff5';
+      exportCtx.lineWidth = 2;
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.fillRect(tableLeft, tableTop, tableWidth, cellHeight * 2);
+      exportCtx.strokeRect(tableLeft, tableTop, tableWidth, cellHeight * 2);
+
+      const drawCell = (col, row, text, isRowLabel = false) => {
+        const x = tableLeft + col * cellWidth;
+        const y = tableTop + row * cellHeight;
+        exportCtx.fillStyle = isRowLabel ? 'rgba(77, 142, 214, 0.1)' : '#ffffff';
+        exportCtx.fillRect(x, y, cellWidth, cellHeight);
+        exportCtx.strokeStyle = '#cddff5';
+        exportCtx.strokeRect(x, y, cellWidth, cellHeight);
+        exportCtx.fillStyle = isRowLabel ? '#316fb5' : '#24364d';
+        exportCtx.font = isRowLabel
+          ? '700 26px "Noto Sans TC", sans-serif'
+          : '600 24px "Noto Sans TC", sans-serif';
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'middle';
+        exportCtx.fillText(text, x + cellWidth / 2, y + cellHeight / 2);
+      };
+
+      drawCell(0, 0, rows.xLabel, true);
+      drawCell(0, 1, rows.yLabel, true);
+      rows.xValues.forEach((value, index) => drawCell(index + 1, 0, value));
+      rows.yValues.forEach((value, index) => drawCell(index + 1, 1, value));
+
+      exportCtx.textAlign = 'left';
+      exportCtx.textBaseline = 'alphabetic';
+      exportCtx.fillStyle = '#667892';
+      exportCtx.font = '500 18px "Noto Sans TC", sans-serif';
+      exportCtx.fillText('匯出選項：' + [
+        exportShowXCheckbox.checked ? '顯示 X' : '隱藏 X',
+        exportShowYCheckbox.checked ? '顯示 Y' : '隱藏 Y',
+        exportTableStyleSelect.value === 'answer'
+          ? '答案模式'
+          : exportTableStyleSelect.value === 'blank'
+            ? '填空模式'
+            : '依目前表格內容',
+      ].join('／'), 54, canvas.height - 26);
+
+      const formula = getFormulaText(config.a, config.h, config.k).replace(/\s+/g, '_');
+      downloadCanvas(canvas, `quadratic-table-${formula}.png`);
+    }
+
     function renderAll() {
       syncFormulaInputVisual();
       const config = getCurrentConfig();
@@ -1009,21 +1176,28 @@
       showAxisCheckbox.checked = true;
       showVertexCheckbox.checked = true;
       snapIntegersCheckbox.checked = true;
+      exportTypeSelect.value = 'graph';
+      exportTableStyleSelect.value = 'current';
+      exportShowXCheckbox.checked = true;
+      exportShowYCheckbox.checked = true;
       answersVisible = false;
       renderAll();
     }
 
-    // 匯出目前畫布為 PNG，方便列印或插入講義。
     function exportImage() {
-      const link = document.createElement('a');
-      const formula = getFormulaText(safeNumber(aInput, 1), safeNumber(hInput, 0), safeNumber(kInput, 0)).replace(/\s+/g, '_');
-      link.download = `quadratic-${formula}.png`;
-      link.href = graphCanvas.toDataURL('image/png');
-      link.click();
+      const config = getCurrentConfig();
+      const xValues = buildXValues(config.start, config.end, config.step);
+
+      if (exportTypeSelect.value === 'table') {
+        exportTableImage(config, xValues);
+        return;
+      }
+
+      exportGraphImage();
     }
 
     // ===== 事件綁定 =====
-    [aInput, hInput, kInput, xStartInput, xEndInput, yStartInput, yEndInput, tableModeSelect, graphModeSelect, showPointLabels, showAxisCheckbox, showVertexCheckbox, snapIntegersCheckbox]
+    [aInput, hInput, kInput, xStartInput, xEndInput, yStartInput, yEndInput, tableModeSelect, graphModeSelect, showPointLabels, showAxisCheckbox, showVertexCheckbox, snapIntegersCheckbox, exportTypeSelect, exportTableStyleSelect, exportShowXCheckbox, exportShowYCheckbox]
       .forEach((element) => {
         element.addEventListener('input', renderAll);
         element.addEventListener('change', renderAll);

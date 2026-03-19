@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>二次函數繪圖學習工具</title>
+  <style>
+    :root {
+      --bg: #f7fbff;
+      --panel: #ffffff;
+      --panel-soft: #f9fcff;
+      --line: #cddff5;
+      --line-strong: #7f9fc9;
+      --grid: #dcecff;
+      --axis: #58749c;
+      --text: #24364d;
+      --muted: #667892;
+      --primary: #4d8ed6;
+      --primary-deep: #316fb5;
+      --accent: #ef7aa8;
+      --accent-soft: rgba(239, 122, 168, 0.16);
+      --blue-soft: rgba(77, 142, 214, 0.14);
+      --shadow: 0 18px 40px rgba(88, 116, 156, 0.12);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(77, 142, 214, 0.12), transparent 30%),
+        linear-gradient(180deg, #fafdff 0%, #f3f8ff 100%);
+      min-height: 100vh;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 24px));
+      margin: 24px auto 40px;
+      display: grid;
+      gap: 20px;
+    }
+
+    .hero, .panel {
+      background: var(--panel);
+      border: 1px solid rgba(127, 159, 201, 0.18);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 24px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(1.7rem, 2.8vw, 2.4rem);
+      letter-spacing: 0.04em;
+    }
+
+    .hero p {
+      margin: 0;
+      line-height: 1.75;
+      color: var(--muted);
+    }
+
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      color: var(--primary-deep);
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(320px, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 20px;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 1.18rem;
+    }
+
+    .math-formula {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px 8px;
+      padding: 18px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #fbfdff 0%, #f3f8ff 100%);
+      border: 1px solid var(--line);
+      font-size: clamp(1.05rem, 1.7vw, 1.3rem);
+      line-height: 1.8;
+    }
+
+    .math-fragment,
+    .math-power {
+      font-family: "Times New Roman", Georgia, serif;
+    }
+
+    .math-input-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 72px;
+      position: relative;
+    }
+
+    .math-input {
+      width: 100%;
+      min-width: 72px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1.5px solid var(--line-strong);
+      background: #fff;
+      color: var(--text);
+      font-size: 1rem;
+      text-align: center;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .math-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(77, 142, 214, 0.12);
+    }
+
+    .formula-preview {
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: var(--panel-soft);
+      border: 1px dashed var(--line-strong);
+      color: var(--primary-deep);
+      font-size: 1.02rem;
+      line-height: 1.7;
+    }
+
+    .grid-fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 0.94rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1.5px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      font-size: 0.98rem;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(77, 142, 214, 0.1);
+    }
+
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .export-panel {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #fcfeff 0%, #f2f8ff 100%);
+      display: grid;
+      gap: 12px;
+    }
+
+    .export-panel h3 {
+      margin: 0;
+      font-size: 1rem;
+      color: var(--primary-deep);
+    }
+
+    .export-panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    .export-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 11px 16px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-deep));
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(49, 111, 181, 0.18);
+    }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--primary-deep);
+      border: 1px solid var(--line-strong);
+    }
+
+    .btn-accent {
+      background: linear-gradient(135deg, #ef7aa8, #db6795);
+      color: #fff;
+      box-shadow: 0 12px 24px rgba(219, 103, 149, 0.18);
+    }
+
+    .note-box {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(239, 122, 168, 0.08), rgba(77, 142, 214, 0.08));
+      border: 1px solid rgba(127, 159, 201, 0.24);
+      color: var(--muted);
+      line-height: 1.75;
+    }
+
+    .results-grid {
+      display: grid;
+      gap: 20px;
+    }
+
+    .table-card,
+    .graph-card {
+      padding: 18px;
+      border: 1px solid rgba(127, 159, 201, 0.18);
+      border-radius: 16px;
+      background: linear-gradient(180deg, #ffffff, #fafdff);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .card-header h3 {
+      margin: 0;
+      font-size: 1.08rem;
+    }
+
+    .card-header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .value-table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 420px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      text-align: center;
+      padding: 12px 10px;
+      min-width: 54px;
+      font-size: 0.98rem;
+    }
+
+    th.row-label,
+    td.row-label {
+      width: 64px;
+      font-weight: 700;
+      color: var(--primary-deep);
+      background: rgba(77, 142, 214, 0.08);
+      position: sticky;
+      left: 0;
+    }
+
+    .answer-hidden {
+      color: #b9c5d5;
+      letter-spacing: 0.08em;
+    }
+
+    .graph-shell {
+      display: grid;
+      place-items: center;
+      gap: 12px;
+    }
+
+    canvas {
+      width: min(100%, 720px);
+      aspect-ratio: 1 / 1;
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      box-shadow: inset 0 0 0 1px rgba(220, 236, 255, 0.7);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: var(--panel-soft);
+      border: 1px solid var(--line);
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .dot.pink { background: var(--accent); }
+    .dot.blue { background: var(--primary); }
+    .dot.axis { background: var(--axis); }
+
+    .teaching-box {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .teaching-item {
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--panel-soft);
+    }
+
+    .teaching-item strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--primary-deep);
+    }
+
+    .footer-note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+      padding-bottom: 6px;
+    }
+
+    @media (max-width: 900px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .teaching-box,
+      .grid-fields,
+      .toggle-grid,
+      .export-options {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100% - 16px, 1000px);
+        margin: 16px auto 28px;
+      }
+
+      .hero, .panel {
+        padding: 16px;
+      }
+
+      .math-formula {
+        gap: 8px 6px;
+        padding: 14px;
+      }
+
+      .math-input-wrap,
+      .math-input {
+        min-width: 60px;
+      }
+
+      th, td {
+        padding: 10px 8px;
+        min-width: 48px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page" id="exportArea">
+    <section class="hero">
+      <h1>二次函數繪圖學習工具</h1>
+      <p>
+        以頂點式 <strong>y = a(x - h)² + k</strong> 為核心，快速產生數值表、空白座標平面、點圖與平滑拋物線，適合作為課堂講義、練習單與投影片教材。
+      </p>
+      <div class="status-row">
+        <span class="chip" id="formulaChip">目前函數：y = 1(x - 0)² + 0</span>
+        <span class="chip" id="vertexChip">頂點：V(0, 0)</span>
+        <span class="chip" id="axisChip">對稱軸：x = 0</span>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <section class="panel">
+        <h2>輸入區</h2>
+
+        <div class="math-formula" aria-label="頂點式輸入區">
+          <span class="math-fragment">y =</span>
+          <span class="math-input-wrap"><input class="math-input" id="aInput" type="number" step="0.1" value="1" aria-label="係數 a" /></span>
+          <span class="math-fragment">( x</span>
+          <span id="hSignVisual" class="math-fragment">−</span>
+          <span class="math-input-wrap"><input class="math-input" id="hInput" type="number" step="0.1" value="0" aria-label="頂點 x 座標 h" /></span>
+          <span class="math-fragment">)</span>
+          <sup class="math-power">2</sup>
+          <span id="kVisualWrap" class="math-fragment">+ <span class="math-input-wrap"><input class="math-input" id="kInput" type="number" step="0.1" value="0" aria-label="頂點 y 座標 k" /></span></span>
+        </div>
+
+        <div class="formula-preview" id="formulaPreview"></div>
+
+        <div class="grid-fields">
+          <div class="field">
+            <label for="xStartInput">x 起點</label>
+            <input id="xStartInput" type="number" step="1" value="-4" />
+          </div>
+          <div class="field">
+            <label for="xEndInput">x 終點</label>
+            <input id="xEndInput" type="number" step="1" value="4" />
+          </div>
+          <div class="field">
+            <label for="yStartInput">y 起點</label>
+            <input id="yStartInput" type="number" step="1" value="-6" />
+          </div>
+          <div class="field">
+            <label for="yEndInput">y 終點</label>
+            <input id="yEndInput" type="number" step="1" value="6" />
+          </div>
+          <div class="field">
+            <label for="tableModeSelect">表格模式</label>
+            <select id="tableModeSelect">
+              <option value="blank">填空模式（只顯示 x）</option>
+              <option value="answer">答案模式（顯示 y）</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="graphModeSelect">座標圖模式</label>
+            <select id="graphModeSelect">
+              <option value="blank">空白座標平面</option>
+              <option value="points">顯示點</option>
+              <option value="curve">顯示完整曲線</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toggle-grid">
+          <label class="toggle"><input id="showPointLabels" type="checkbox" checked /> 顯示點座標</label>
+          <label class="toggle"><input id="showAxisCheckbox" type="checkbox" checked /> 顯示對稱軸 x = h</label>
+          <label class="toggle"><input id="showVertexCheckbox" type="checkbox" checked /> 顯示頂點標示</label>
+          <label class="toggle"><input id="snapIntegersCheckbox" type="checkbox" checked /> 表格 x 以整數遞增</label>
+        </div>
+
+        <div class="button-row">
+          <button class="btn-primary" id="generateBtn" type="button">產生題目</button>
+          <button class="btn-secondary" id="toggleAnswerBtn" type="button">顯示答案</button>
+          <button class="btn-secondary" id="resetBtn" type="button">重設</button>
+          <button class="btn-accent" id="exportBtn" type="button">匯出圖片</button>
+        </div>
+
+        <div class="export-panel">
+          <h3>匯出設定</h3>
+          <p>可選擇匯出二次函數座標圖，或匯出函數值表格圖片；若匯出表格，也能決定是否顯示 X、Y 列標題。</p>
+          <div class="export-options">
+            <div class="field">
+              <label for="exportTypeSelect">匯出項目</label>
+              <select id="exportTypeSelect">
+                <option value="graph">二次函數圖片</option>
+                <option value="table">函數值表格圖片</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="exportTableStyleSelect">表格圖片內容</label>
+              <select id="exportTableStyleSelect">
+                <option value="current">依目前表格內容匯出</option>
+                <option value="answer">強制顯示答案</option>
+                <option value="blank">強制填空模式</option>
+              </select>
+            </div>
+          </div>
+          <div class="checkbox-row">
+            <label class="toggle"><input id="exportShowXCheckbox" type="checkbox" checked /> 表格圖片顯示 X</label>
+            <label class="toggle"><input id="exportShowYCheckbox" type="checkbox" checked /> 表格圖片顯示 Y</label>
+          </div>
+        </div>
+
+        <div class="note-box" id="teachingHint"></div>
+      </section>
+
+      <section class="results-grid">
+        <article class="table-card">
+          <div class="card-header">
+            <div>
+              <h3>函數值表格</h3>
+              <p>可依需求切換填空模式與答案模式，方便列印成練習題。</p>
+            </div>
+          </div>
+          <div class="value-table-wrap">
+            <table aria-label="二次函數值表" id="valueTable"></table>
+          </div>
+        </article>
+
+        <article class="graph-card">
+          <div class="card-header">
+            <div>
+              <h3>座標圖</h3>
+              <p>淡藍格線、粗軸線與原點 O，支援空白、點圖與完整曲線模式。</p>
+            </div>
+          </div>
+          <div class="graph-shell">
+            <canvas id="graphCanvas" width="720" height="720"></canvas>
+            <div class="legend">
+              <span><i class="dot axis"></i> x 軸、y 軸與原點</span>
+              <span><i class="dot pink"></i> 拋物線與資料點</span>
+              <span><i class="dot blue"></i> 頂點與對稱軸</span>
+            </div>
+          </div>
+
+          <div class="teaching-box">
+            <div class="teaching-item"><strong>頂點</strong><span id="vertexInfo">V(0, 0)</span></div>
+            <div class="teaching-item"><strong>對稱軸</strong><span id="axisInfo">x = 0</span></div>
+            <div class="teaching-item"><strong>開口方向</strong><span id="openingInfo">a &gt; 0，開口向上。</span></div>
+            <div class="teaching-item"><strong>寬窄判讀</strong><span id="widthInfo">|a| = 1，與基本拋物線相同。</span></div>
+          </div>
+        </article>
+      </section>
+    </section>
+
+    <div class="footer-note">單檔 HTML / CSS / JavaScript，適合直接上傳至 GitHub Pages。</div>
+  </main>
+
+  <script>
+    // ===== 主要 DOM 參照 =====
+    const aInput = document.getElementById('aInput');
+    const hInput = document.getElementById('hInput');
+    const kInput = document.getElementById('kInput');
+    const xStartInput = document.getElementById('xStartInput');
+    const xEndInput = document.getElementById('xEndInput');
+    const yStartInput = document.getElementById('yStartInput');
+    const yEndInput = document.getElementById('yEndInput');
+    const tableModeSelect = document.getElementById('tableModeSelect');
+    const graphModeSelect = document.getElementById('graphModeSelect');
+    const showPointLabels = document.getElementById('showPointLabels');
+    const showAxisCheckbox = document.getElementById('showAxisCheckbox');
+    const showVertexCheckbox = document.getElementById('showVertexCheckbox');
+    const snapIntegersCheckbox = document.getElementById('snapIntegersCheckbox');
+    const generateBtn = document.getElementById('generateBtn');
+    const toggleAnswerBtn = document.getElementById('toggleAnswerBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const exportTypeSelect = document.getElementById('exportTypeSelect');
+    const exportTableStyleSelect = document.getElementById('exportTableStyleSelect');
+    const exportShowXCheckbox = document.getElementById('exportShowXCheckbox');
+    const exportShowYCheckbox = document.getElementById('exportShowYCheckbox');
+    const valueTable = document.getElementById('valueTable');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const formulaPreview = document.getElementById('formulaPreview');
+    const formulaChip = document.getElementById('formulaChip');
+    const vertexChip = document.getElementById('vertexChip');
+    const axisChip = document.getElementById('axisChip');
+    const teachingHint = document.getElementById('teachingHint');
+    const hSignVisual = document.getElementById('hSignVisual');
+    const vertexInfo = document.getElementById('vertexInfo');
+    const axisInfo = document.getElementById('axisInfo');
+    const openingInfo = document.getElementById('openingInfo');
+    const widthInfo = document.getElementById('widthInfo');
+
+    const ctx = graphCanvas.getContext('2d');
+
+    // 控制是否顯示答案：false 時表格只顯示 x，圖上也不顯示解答資訊。
+    let answersVisible = false;
+
+    // ===== 基本工具函式 =====
+    function formatNumber(value) {
+      if (!Number.isFinite(value)) return '0';
+      const rounded = Math.round(value * 100) / 100;
+      return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+    }
+
+    function safeNumber(input, fallback = 0) {
+      const parsed = Number(input.value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    // 將頂點式格式化為較接近數學排版的顯示。
+    function getFormulaText(a, h, k) {
+      const hPart = h >= 0 ? `(x - ${formatNumber(h)})` : `(x + ${formatNumber(Math.abs(h))})`;
+      const kPart = k > 0 ? ` + ${formatNumber(k)}` : k < 0 ? ` - ${formatNumber(Math.abs(k))}` : '';
+      return `y = ${formatNumber(a)}${hPart}²${kPart}`;
+    }
+
+    // 使用頂點式 y = a(x - h)^2 + k 計算 y 值。
+    function evaluateQuadratic(x, a, h, k) {
+      return a * Math.pow(x - h, 2) + k;
+    }
+
+    function buildXValues(start, end, step) {
+      const values = [];
+      if (start > end) [start, end] = [end, start];
+      for (let x = start; x <= end + step / 2; x += step) {
+        values.push(Math.round(x * 1000) / 1000);
+      }
+      return values;
+    }
+
+    function getCurrentConfig() {
+      const a = safeNumber(aInput, 1);
+      const h = safeNumber(hInput, 0);
+      const k = safeNumber(kInput, 0);
+      const start = safeNumber(xStartInput, -4);
+      const end = safeNumber(xEndInput, 4);
+      const yStart = safeNumber(yStartInput, -6);
+      const yEnd = safeNumber(yEndInput, 6);
+      const step = snapIntegersCheckbox.checked ? 1 : 0.5;
+
+      return {
+        a,
+        h,
+        k,
+        start,
+        end,
+        yStart,
+        yEnd,
+        step,
+        tableMode: tableModeSelect.value,
+        graphMode: graphModeSelect.value,
+        pointLabels: showPointLabels.checked,
+        showAxis: showAxisCheckbox.checked,
+        showVertex: showVertexCheckbox.checked,
+      };
+    }
+
+    // 根據 h 的正負，更新輸入區可視化的正負號，避免出現 (x - -3)。
+    function syncFormulaInputVisual() {
+      const h = safeNumber(hInput, 0);
+      hSignVisual.textContent = h >= 0 ? '−' : '+';
+    }
+
+    function updateSummary(config) {
+      const { a, h, k } = config;
+      const formulaText = getFormulaText(a, h, k);
+      formulaPreview.innerHTML = `
+        <strong>目前題目：</strong>${formulaText}<br />
+        <strong>計算公式：</strong> y = ${formatNumber(a)}(x - ${formatNumber(h)})² + ${formatNumber(k)}
+      `;
+      formulaChip.textContent = `目前函數：${formulaText}`;
+      vertexChip.textContent = `頂點：V(${formatNumber(h)}, ${formatNumber(k)})`;
+      axisChip.textContent = `對稱軸：x = ${formatNumber(h)}`;
+      vertexInfo.textContent = `V(${formatNumber(h)}, ${formatNumber(k)})`;
+      axisInfo.textContent = `x = ${formatNumber(h)}`;
+
+      openingInfo.textContent = a < 0
+        ? 'a < 0，開口向下。'
+        : a > 0
+          ? 'a > 0，開口向上。'
+          : 'a = 0，圖形退化為水平直線。';
+
+      const absA = Math.abs(a);
+      widthInfo.textContent = absA > 1
+        ? '|a| > 1，拋物線較窄。'
+        : absA > 0 && absA < 1
+          ? '0 < |a| < 1，拋物線較寬。'
+          : absA === 1
+            ? '|a| = 1，與基本拋物線相同。'
+            : '|a| = 0，不形成拋物線。';
+
+      teachingHint.innerHTML = `
+        <strong>教學提醒：</strong>
+        頂點式直接看出頂點 <strong>(${formatNumber(h)}, ${formatNumber(k)})</strong> 與對稱軸 <strong>x = ${formatNumber(h)}</strong>。
+        ${a < 0 ? '因為 a 為負數，所以圖形會向下開口。' : '因為 a 為正數，所以圖形會向上開口。'}
+        ${absA > 1 ? '目前圖形較窄。' : absA > 0 && absA < 1 ? '目前圖形較寬。' : absA === 1 ? '目前寬度與基本拋物線相同。' : '目前退化成常數函數。'}
+        座標平面目前設定為 x：${formatNumber(config.start)} 到 ${formatNumber(config.end)}、y：${formatNumber(config.yStart)} 到 ${formatNumber(config.yEnd)}，每一格固定代表 1 單位。
+      `;
+    }
+
+    function renderTable(config, xValues) {
+      const showYAnswers = answersVisible && config.tableMode === 'answer';
+      const xCells = xValues.map((x) => `<td>${formatNumber(x)}</td>`).join('');
+      const yCells = xValues.map((x) => {
+        const y = evaluateQuadratic(x, config.a, config.h, config.k);
+        return showYAnswers
+          ? `<td>${formatNumber(y)}</td>`
+          : '<td class="answer-hidden">＿＿</td>';
+      }).join('');
+
+      valueTable.innerHTML = `
+        <tr>
+          <th class="row-label">x</th>
+          ${xCells}
+        </tr>
+        <tr>
+          <th class="row-label">y</th>
+          ${yCells}
+        </tr>
+      `;
+    }
+
+    function getExportTableRows(config, xValues, mode = 'current') {
+      const showXLabel = exportShowXCheckbox.checked;
+      const showYLabel = exportShowYCheckbox.checked;
+      const resolvedMode = mode === 'current'
+        ? (answersVisible && config.tableMode === 'answer' ? 'answer' : 'blank')
+        : mode;
+
+      return {
+        xLabel: showXLabel ? 'x' : '',
+        yLabel: showYLabel ? 'y' : '',
+        xValues: xValues.map((x) => formatNumber(x)),
+        yValues: xValues.map((x) => {
+          const y = evaluateQuadratic(x, config.a, config.h, config.k);
+          return resolvedMode === 'answer' ? formatNumber(y) : '＿＿';
+        }),
+      };
+    }
+
+    function getGraphBounds(config) {
+      let xMin = Math.min(config.start, config.end);
+      let xMax = Math.max(config.start, config.end);
+      let yMin = Math.min(config.yStart, config.yEnd);
+      let yMax = Math.max(config.yStart, config.yEnd);
+
+      if (xMin === xMax) {
+        xMin -= 5;
+        xMax += 5;
+      }
+      if (yMin === yMax) {
+        yMin -= 5;
+        yMax += 5;
+      }
+
+      return { xMin, xMax, yMin, yMax };
+    }
+
+    function createTransform(bounds, width, height, padding) {
+      const innerWidth = width - padding * 2;
+      const innerHeight = height - padding * 2;
+      const xRange = bounds.xMax - bounds.xMin;
+      const yRange = bounds.yMax - bounds.yMin;
+      const unitSize = Math.min(innerWidth / xRange, innerHeight / yRange);
+      const plotWidth = unitSize * xRange;
+      const plotHeight = unitSize * yRange;
+      const offsetX = padding + (innerWidth - plotWidth) / 2;
+      const offsetY = padding + (innerHeight - plotHeight) / 2;
+
+      return {
+        unitSize,
+        plotLeft: offsetX,
+        plotTop: offsetY,
+        plotRight: offsetX + plotWidth,
+        plotBottom: offsetY + plotHeight,
+        toCanvasX(x) {
+          return offsetX + (x - bounds.xMin) * unitSize;
+        },
+        toCanvasY(y) {
+          return offsetY + (bounds.yMax - y) * unitSize;
+        },
+      };
+    }
+
+    function drawGrid(bounds, transform, width, height) {
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.fillStyle = '#f7fbff';
+      ctx.fillRect(
+        transform.plotLeft,
+        transform.plotTop,
+        transform.plotRight - transform.plotLeft,
+        transform.plotBottom - transform.plotTop
+      );
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = '#dcecff';
+      ctx.lineWidth = 1;
+      for (let x = Math.ceil(bounds.xMin); x <= Math.floor(bounds.xMax); x += 1) {
+        const px = transform.toCanvasX(x);
+        ctx.beginPath();
+        ctx.moveTo(px, transform.plotTop);
+        ctx.lineTo(px, transform.plotBottom);
+        ctx.stroke();
+      }
+      for (let y = Math.ceil(bounds.yMin); y <= Math.floor(bounds.yMax); y += 1) {
+        const py = transform.toCanvasY(y);
+        ctx.beginPath();
+        ctx.moveTo(transform.plotLeft, py);
+        ctx.lineTo(transform.plotRight, py);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      ctx.save();
+      ctx.strokeStyle = '#b8cde9';
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(
+        transform.plotLeft,
+        transform.plotTop,
+        transform.plotRight - transform.plotLeft,
+        transform.plotBottom - transform.plotTop
+      );
+      ctx.restore();
+
+      // 繪製 x、y 軸。
+      const xAxisY = bounds.yMin <= 0 && bounds.yMax >= 0 ? transform.toCanvasY(0) : transform.plotBottom;
+      const yAxisX = bounds.xMin <= 0 && bounds.xMax >= 0 ? transform.toCanvasX(0) : transform.plotLeft;
+
+      ctx.save();
+      ctx.strokeStyle = '#58749c';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(transform.plotLeft, xAxisY);
+      ctx.lineTo(transform.plotRight, xAxisY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(yAxisX, transform.plotTop);
+      ctx.lineTo(yAxisX, transform.plotBottom);
+      ctx.stroke();
+      ctx.restore();
+
+      // 每格 1 單位的刻度與數字，對齊格線。
+      ctx.save();
+      ctx.strokeStyle = '#58749c';
+      ctx.fillStyle = '#3c587f';
+      ctx.lineWidth = 1.4;
+      ctx.font = '500 13px "Noto Sans TC", sans-serif';
+
+      for (let x = Math.ceil(bounds.xMin); x <= Math.floor(bounds.xMax); x += 1) {
+        const px = transform.toCanvasX(x);
+        ctx.beginPath();
+        ctx.moveTo(px, xAxisY - 5);
+        ctx.lineTo(px, xAxisY + 5);
+        ctx.stroke();
+        if (x !== 0) {
+          ctx.fillText(String(x), px - 4, xAxisY + 18);
+        }
+      }
+
+      for (let y = Math.ceil(bounds.yMin); y <= Math.floor(bounds.yMax); y += 1) {
+        const py = transform.toCanvasY(y);
+        ctx.beginPath();
+        ctx.moveTo(yAxisX - 5, py);
+        ctx.lineTo(yAxisX + 5, py);
+        ctx.stroke();
+        if (y !== 0) {
+          ctx.fillText(String(y), yAxisX + 8, py + 4);
+        }
+      }
+      ctx.restore();
+
+      // 座標軸文字與原點 O。
+      ctx.save();
+      ctx.fillStyle = '#3c587f';
+      ctx.font = '600 18px "Noto Sans TC", sans-serif';
+      ctx.fillText('x', transform.plotRight + 10, xAxisY - 10);
+      ctx.fillText('y', yAxisX + 10, transform.plotTop - 8);
+      ctx.fillText('O', yAxisX + 10, xAxisY + 22);
+      ctx.restore();
+    }
+
+    function drawAxisOfSymmetry(config, transform) {
+      if (!config.showAxis || !answersVisible) return;
+      const px = transform.toCanvasX(config.h);
+      ctx.save();
+      ctx.setLineDash([10, 8]);
+      ctx.strokeStyle = '#4d8ed6';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px, transform.plotTop);
+      ctx.lineTo(px, transform.plotBottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#316fb5';
+      ctx.font = '600 16px "Noto Sans TC", sans-serif';
+      ctx.fillText(`x = ${formatNumber(config.h)}`, px + 10, transform.plotTop + 22);
+      ctx.restore();
+    }
+
+    function drawCurve(config, bounds, transform) {
+      ctx.save();
+      ctx.strokeStyle = '#ef7aa8';
+      ctx.lineWidth = 4;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+
+      const step = (bounds.xMax - bounds.xMin) / 260;
+      let first = true;
+      for (let x = bounds.xMin; x <= bounds.xMax + step / 2; x += step) {
+        const y = evaluateQuadratic(x, config.a, config.h, config.k);
+        const px = transform.toCanvasX(x);
+        const py = transform.toCanvasY(y);
+        if (first) {
+          ctx.moveTo(px, py);
+          first = false;
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawPoints(config, xValues, transform) {
+      if (!answersVisible) return;
+      ctx.save();
+      ctx.fillStyle = '#ef7aa8';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+
+      xValues.forEach((x) => {
+        const y = evaluateQuadratic(x, config.a, config.h, config.k);
+        const px = transform.toCanvasX(x);
+        const py = transform.toCanvasY(y);
+
+        ctx.beginPath();
+        ctx.arc(px, py, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        if (config.pointLabels) {
+          ctx.fillStyle = '#b34e79';
+          ctx.font = '600 14px "Noto Sans TC", sans-serif';
+          ctx.fillText(`(${formatNumber(x)}, ${formatNumber(y)})`, px + 10, py - 10);
+          ctx.fillStyle = '#ef7aa8';
+        }
+      });
+      ctx.restore();
+    }
+
+    function drawVertex(config, transform) {
+      if (!config.showVertex || !answersVisible) return;
+      const px = transform.toCanvasX(config.h);
+      const py = transform.toCanvasY(config.k);
+      ctx.save();
+      ctx.fillStyle = '#4d8ed6';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(px, py, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#316fb5';
+      ctx.font = '700 16px "Noto Sans TC", sans-serif';
+      ctx.fillText(`V(${formatNumber(config.h)}, ${formatNumber(config.k)})`, px + 12, py - 12);
+      ctx.restore();
+    }
+
+    function renderGraph(config, xValues) {
+      const width = graphCanvas.width;
+      const height = graphCanvas.height;
+      const padding = 58;
+      const bounds = getGraphBounds(config);
+      const transform = createTransform(bounds, width, height, padding);
+
+      drawGrid(bounds, transform, width, height);
+      drawAxisOfSymmetry(config, transform);
+
+      const actualGraphMode = answersVisible ? config.graphMode : 'blank';
+      if (actualGraphMode === 'curve') {
+        drawCurve(config, bounds, transform);
+        drawPoints(config, xValues, transform);
+      } else if (actualGraphMode === 'points') {
+        drawPoints(config, xValues, transform);
+      }
+
+      drawVertex(config, transform);
+    }
+
+    function downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    function exportGraphImage() {
+      const formula = getFormulaText(safeNumber(aInput, 1), safeNumber(hInput, 0), safeNumber(kInput, 0)).replace(/\s+/g, '_');
+      downloadCanvas(graphCanvas, `quadratic-graph-${formula}.png`);
+    }
+
+    function exportTableImage(config, xValues) {
+      const rows = getExportTableRows(config, xValues, exportTableStyleSelect.value);
+      const columns = rows.xValues.length + 1;
+      const cellWidth = 92;
+      const cellHeight = 68;
+      const headerHeight = 116;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(920, columns * cellWidth + 120);
+      canvas.height = headerHeight + cellHeight * 2 + 80;
+
+      const exportCtx = canvas.getContext('2d');
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+      exportCtx.fillStyle = '#24538c';
+      exportCtx.font = '700 32px "Noto Sans TC", sans-serif';
+      exportCtx.fillText('二次函數函數值表格', 54, 56);
+
+      exportCtx.fillStyle = '#58749c';
+      exportCtx.font = '500 22px "Noto Sans TC", sans-serif';
+      exportCtx.fillText(getFormulaText(config.a, config.h, config.k), 54, 94);
+
+      const tableLeft = 54;
+      const tableTop = headerHeight;
+      const tableWidth = columns * cellWidth;
+
+      exportCtx.strokeStyle = '#cddff5';
+      exportCtx.lineWidth = 2;
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.fillRect(tableLeft, tableTop, tableWidth, cellHeight * 2);
+      exportCtx.strokeRect(tableLeft, tableTop, tableWidth, cellHeight * 2);
+
+      const drawCell = (col, row, text, isRowLabel = false) => {
+        const x = tableLeft + col * cellWidth;
+        const y = tableTop + row * cellHeight;
+        exportCtx.fillStyle = isRowLabel ? 'rgba(77, 142, 214, 0.1)' : '#ffffff';
+        exportCtx.fillRect(x, y, cellWidth, cellHeight);
+        exportCtx.strokeStyle = '#cddff5';
+        exportCtx.strokeRect(x, y, cellWidth, cellHeight);
+        exportCtx.fillStyle = isRowLabel ? '#316fb5' : '#24364d';
+        exportCtx.font = isRowLabel
+          ? '700 26px "Noto Sans TC", sans-serif'
+          : '600 24px "Noto Sans TC", sans-serif';
+        exportCtx.textAlign = 'center';
+        exportCtx.textBaseline = 'middle';
+        exportCtx.fillText(text, x + cellWidth / 2, y + cellHeight / 2);
+      };
+
+      drawCell(0, 0, rows.xLabel, true);
+      drawCell(0, 1, rows.yLabel, true);
+      rows.xValues.forEach((value, index) => drawCell(index + 1, 0, value));
+      rows.yValues.forEach((value, index) => drawCell(index + 1, 1, value));
+
+      exportCtx.textAlign = 'left';
+      exportCtx.textBaseline = 'alphabetic';
+      exportCtx.fillStyle = '#667892';
+      exportCtx.font = '500 18px "Noto Sans TC", sans-serif';
+      exportCtx.fillText('匯出選項：' + [
+        exportShowXCheckbox.checked ? '顯示 X' : '隱藏 X',
+        exportShowYCheckbox.checked ? '顯示 Y' : '隱藏 Y',
+        exportTableStyleSelect.value === 'answer'
+          ? '答案模式'
+          : exportTableStyleSelect.value === 'blank'
+            ? '填空模式'
+            : '依目前表格內容',
+      ].join('／'), 54, canvas.height - 26);
+
+      const formula = getFormulaText(config.a, config.h, config.k).replace(/\s+/g, '_');
+      downloadCanvas(canvas, `quadratic-table-${formula}.png`);
+    }
+
+    function renderAll() {
+      syncFormulaInputVisual();
+      const config = getCurrentConfig();
+      const xValues = buildXValues(config.start, config.end, config.step);
+      updateSummary(config);
+      renderTable(config, xValues);
+      renderGraph(config, xValues);
+      toggleAnswerBtn.textContent = answersVisible ? '隱藏答案' : '顯示答案';
+    }
+
+    function resetAll() {
+      aInput.value = 1;
+      hInput.value = 0;
+      kInput.value = 0;
+      xStartInput.value = -4;
+      xEndInput.value = 4;
+      yStartInput.value = -6;
+      yEndInput.value = 6;
+      tableModeSelect.value = 'blank';
+      graphModeSelect.value = 'blank';
+      showPointLabels.checked = true;
+      showAxisCheckbox.checked = true;
+      showVertexCheckbox.checked = true;
+      snapIntegersCheckbox.checked = true;
+      exportTypeSelect.value = 'graph';
+      exportTableStyleSelect.value = 'current';
+      exportShowXCheckbox.checked = true;
+      exportShowYCheckbox.checked = true;
+      answersVisible = false;
+      renderAll();
+    }
+
+    function exportImage() {
+      const config = getCurrentConfig();
+      const xValues = buildXValues(config.start, config.end, config.step);
+
+      if (exportTypeSelect.value === 'table') {
+        exportTableImage(config, xValues);
+        return;
+      }
+
+      exportGraphImage();
+    }
+
+    // ===== 事件綁定 =====
+    [aInput, hInput, kInput, xStartInput, xEndInput, yStartInput, yEndInput, tableModeSelect, graphModeSelect, showPointLabels, showAxisCheckbox, showVertexCheckbox, snapIntegersCheckbox, exportTypeSelect, exportTableStyleSelect, exportShowXCheckbox, exportShowYCheckbox]
+      .forEach((element) => {
+        element.addEventListener('input', renderAll);
+        element.addEventListener('change', renderAll);
+      });
+
+    generateBtn.addEventListener('click', renderAll);
+    toggleAnswerBtn.addEventListener('click', () => {
+      answersVisible = !answersVisible;
+      renderAll();
+    });
+    resetBtn.addEventListener('click', resetAll);
+    exportBtn.addEventListener('click', exportImage);
+
+    // 首次載入初始化。
+    renderAll();
+  </script>
+</body>
+</html>

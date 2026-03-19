@@ -485,6 +485,14 @@
             <input id="xEndInput" type="number" step="1" value="4" />
           </div>
           <div class="field">
+            <label for="yStartInput">y 起點</label>
+            <input id="yStartInput" type="number" step="1" value="-6" />
+          </div>
+          <div class="field">
+            <label for="yEndInput">y 終點</label>
+            <input id="yEndInput" type="number" step="1" value="6" />
+          </div>
+          <div class="field">
             <label for="tableModeSelect">表格模式</label>
             <select id="tableModeSelect">
               <option value="blank">填空模式（只顯示 x）</option>
@@ -567,6 +575,8 @@
     const kInput = document.getElementById('kInput');
     const xStartInput = document.getElementById('xStartInput');
     const xEndInput = document.getElementById('xEndInput');
+    const yStartInput = document.getElementById('yStartInput');
+    const yEndInput = document.getElementById('yEndInput');
     const tableModeSelect = document.getElementById('tableModeSelect');
     const graphModeSelect = document.getElementById('graphModeSelect');
     const showPointLabels = document.getElementById('showPointLabels');
@@ -634,6 +644,8 @@
       const k = safeNumber(kInput, 0);
       const start = safeNumber(xStartInput, -4);
       const end = safeNumber(xEndInput, 4);
+      const yStart = safeNumber(yStartInput, -6);
+      const yEnd = safeNumber(yEndInput, 6);
       const step = snapIntegersCheckbox.checked ? 1 : 0.5;
 
       return {
@@ -642,6 +654,8 @@
         k,
         start,
         end,
+        yStart,
+        yEnd,
         step,
         tableMode: tableModeSelect.value,
         graphMode: graphModeSelect.value,
@@ -690,6 +704,7 @@
         頂點式直接看出頂點 <strong>(${formatNumber(h)}, ${formatNumber(k)})</strong> 與對稱軸 <strong>x = ${formatNumber(h)}</strong>。
         ${a < 0 ? '因為 a 為負數，所以圖形會向下開口。' : '因為 a 為正數，所以圖形會向上開口。'}
         ${absA > 1 ? '目前圖形較窄。' : absA > 0 && absA < 1 ? '目前圖形較寬。' : absA === 1 ? '目前寬度與基本拋物線相同。' : '目前退化成常數函數。'}
+        座標平面目前設定為 x：${formatNumber(config.start)} 到 ${formatNumber(config.end)}、y：${formatNumber(config.yStart)} 到 ${formatNumber(config.yEnd)}，每一格固定代表 1 單位。
       `;
     }
 
@@ -715,22 +730,11 @@
       `;
     }
 
-    function getGraphBounds(config, xValues) {
-      const sampleXs = [];
-      const minX = Math.min(...xValues, config.h - 1, -6);
-      const maxX = Math.max(...xValues, config.h + 1, 6);
-      const step = Math.max((maxX - minX) / 180, 0.05);
-      for (let x = minX; x <= maxX + step / 2; x += step) {
-        sampleXs.push(x);
-      }
-
-      const yValues = sampleXs.map((x) => evaluateQuadratic(x, config.a, config.h, config.k));
-      yValues.push(config.k, 0);
-
-      let yMin = Math.min(...yValues);
-      let yMax = Math.max(...yValues);
-      let xMin = Math.min(minX, 0);
-      let xMax = Math.max(maxX, 0);
+    function getGraphBounds(config) {
+      let xMin = Math.min(config.start, config.end);
+      let xMax = Math.max(config.start, config.end);
+      let yMin = Math.min(config.yStart, config.yEnd);
+      let yMax = Math.max(config.yStart, config.yEnd);
 
       if (xMin === xMax) {
         xMin -= 5;
@@ -741,84 +745,138 @@
         yMax += 5;
       }
 
-      const xPad = Math.max(1, (xMax - xMin) * 0.12);
-      const yPad = Math.max(1, (yMax - yMin) * 0.12);
-
-      return {
-        xMin: xMin - xPad,
-        xMax: xMax + xPad,
-        yMin: yMin - yPad,
-        yMax: yMax + yPad,
-      };
+      return { xMin, xMax, yMin, yMax };
     }
 
     function createTransform(bounds, width, height, padding) {
       const innerWidth = width - padding * 2;
       const innerHeight = height - padding * 2;
+      const xRange = bounds.xMax - bounds.xMin;
+      const yRange = bounds.yMax - bounds.yMin;
+      const unitSize = Math.min(innerWidth / xRange, innerHeight / yRange);
+      const plotWidth = unitSize * xRange;
+      const plotHeight = unitSize * yRange;
+      const offsetX = padding + (innerWidth - plotWidth) / 2;
+      const offsetY = padding + (innerHeight - plotHeight) / 2;
+
       return {
+        unitSize,
+        plotLeft: offsetX,
+        plotTop: offsetY,
+        plotRight: offsetX + plotWidth,
+        plotBottom: offsetY + plotHeight,
         toCanvasX(x) {
-          return padding + ((x - bounds.xMin) / (bounds.xMax - bounds.xMin)) * innerWidth;
+          return offsetX + (x - bounds.xMin) * unitSize;
         },
         toCanvasY(y) {
-          return height - padding - ((y - bounds.yMin) / (bounds.yMax - bounds.yMin)) * innerHeight;
+          return offsetY + (bounds.yMax - y) * unitSize;
         },
       };
     }
 
-    function drawGrid(bounds, transform, width, height, padding) {
+    function drawGrid(bounds, transform, width, height) {
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
 
-      const xStep = Math.max(1, Math.round((bounds.xMax - bounds.xMin) / 12));
-      const yStep = Math.max(1, Math.round((bounds.yMax - bounds.yMin) / 12));
+      ctx.save();
+      ctx.fillStyle = '#f7fbff';
+      ctx.fillRect(
+        transform.plotLeft,
+        transform.plotTop,
+        transform.plotRight - transform.plotLeft,
+        transform.plotBottom - transform.plotTop
+      );
+      ctx.restore();
 
       ctx.save();
       ctx.strokeStyle = '#dcecff';
       ctx.lineWidth = 1;
-      for (let x = Math.floor(bounds.xMin); x <= Math.ceil(bounds.xMax); x += xStep) {
+      for (let x = Math.ceil(bounds.xMin); x <= Math.floor(bounds.xMax); x += 1) {
         const px = transform.toCanvasX(x);
         ctx.beginPath();
-        ctx.moveTo(px, padding);
-        ctx.lineTo(px, height - padding);
+        ctx.moveTo(px, transform.plotTop);
+        ctx.lineTo(px, transform.plotBottom);
         ctx.stroke();
       }
-      for (let y = Math.floor(bounds.yMin); y <= Math.ceil(bounds.yMax); y += yStep) {
+      for (let y = Math.ceil(bounds.yMin); y <= Math.floor(bounds.yMax); y += 1) {
         const py = transform.toCanvasY(y);
         ctx.beginPath();
-        ctx.moveTo(padding, py);
-        ctx.lineTo(width - padding, py);
+        ctx.moveTo(transform.plotLeft, py);
+        ctx.lineTo(transform.plotRight, py);
         ctx.stroke();
       }
       ctx.restore();
 
+      ctx.save();
+      ctx.strokeStyle = '#b8cde9';
+      ctx.lineWidth = 1.4;
+      ctx.strokeRect(
+        transform.plotLeft,
+        transform.plotTop,
+        transform.plotRight - transform.plotLeft,
+        transform.plotBottom - transform.plotTop
+      );
+      ctx.restore();
+
       // 繪製 x、y 軸。
+      const xAxisY = bounds.yMin <= 0 && bounds.yMax >= 0 ? transform.toCanvasY(0) : transform.plotBottom;
+      const yAxisX = bounds.xMin <= 0 && bounds.xMax >= 0 ? transform.toCanvasX(0) : transform.plotLeft;
+
       ctx.save();
       ctx.strokeStyle = '#58749c';
       ctx.lineWidth = 3;
-      const xAxisY = transform.toCanvasY(0);
-      const yAxisX = transform.toCanvasX(0);
       ctx.beginPath();
-      ctx.moveTo(padding, xAxisY);
-      ctx.lineTo(width - padding, xAxisY);
+      ctx.moveTo(transform.plotLeft, xAxisY);
+      ctx.lineTo(transform.plotRight, xAxisY);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(yAxisX, padding);
-      ctx.lineTo(yAxisX, height - padding);
+      ctx.moveTo(yAxisX, transform.plotTop);
+      ctx.lineTo(yAxisX, transform.plotBottom);
       ctx.stroke();
+      ctx.restore();
+
+      // 每格 1 單位的刻度與數字，對齊格線。
+      ctx.save();
+      ctx.strokeStyle = '#58749c';
+      ctx.fillStyle = '#3c587f';
+      ctx.lineWidth = 1.4;
+      ctx.font = '500 13px "Noto Sans TC", sans-serif';
+
+      for (let x = Math.ceil(bounds.xMin); x <= Math.floor(bounds.xMax); x += 1) {
+        const px = transform.toCanvasX(x);
+        ctx.beginPath();
+        ctx.moveTo(px, xAxisY - 5);
+        ctx.lineTo(px, xAxisY + 5);
+        ctx.stroke();
+        if (x !== 0) {
+          ctx.fillText(String(x), px - 4, xAxisY + 18);
+        }
+      }
+
+      for (let y = Math.ceil(bounds.yMin); y <= Math.floor(bounds.yMax); y += 1) {
+        const py = transform.toCanvasY(y);
+        ctx.beginPath();
+        ctx.moveTo(yAxisX - 5, py);
+        ctx.lineTo(yAxisX + 5, py);
+        ctx.stroke();
+        if (y !== 0) {
+          ctx.fillText(String(y), yAxisX + 8, py + 4);
+        }
+      }
       ctx.restore();
 
       // 座標軸文字與原點 O。
       ctx.save();
       ctx.fillStyle = '#3c587f';
       ctx.font = '600 18px "Noto Sans TC", sans-serif';
-      ctx.fillText('x', width - padding + 10, xAxisY - 10);
-      ctx.fillText('y', yAxisX + 10, padding - 8);
+      ctx.fillText('x', transform.plotRight + 10, xAxisY - 10);
+      ctx.fillText('y', yAxisX + 10, transform.plotTop - 8);
       ctx.fillText('O', yAxisX + 10, xAxisY + 22);
       ctx.restore();
     }
 
-    function drawAxisOfSymmetry(config, transform, height, padding) {
+    function drawAxisOfSymmetry(config, transform) {
       if (!config.showAxis || !answersVisible) return;
       const px = transform.toCanvasX(config.h);
       ctx.save();
@@ -826,13 +884,13 @@
       ctx.strokeStyle = '#4d8ed6';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(px, padding);
-      ctx.lineTo(px, height - padding);
+      ctx.moveTo(px, transform.plotTop);
+      ctx.lineTo(px, transform.plotBottom);
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = '#316fb5';
       ctx.font = '600 16px "Noto Sans TC", sans-serif';
-      ctx.fillText(`x = ${formatNumber(config.h)}`, px + 10, padding + 22);
+      ctx.fillText(`x = ${formatNumber(config.h)}`, px + 10, transform.plotTop + 22);
       ctx.restore();
     }
 
@@ -910,11 +968,11 @@
       const width = graphCanvas.width;
       const height = graphCanvas.height;
       const padding = 58;
-      const bounds = getGraphBounds(config, xValues);
+      const bounds = getGraphBounds(config);
       const transform = createTransform(bounds, width, height, padding);
 
-      drawGrid(bounds, transform, width, height, padding);
-      drawAxisOfSymmetry(config, transform, height, padding);
+      drawGrid(bounds, transform, width, height);
+      drawAxisOfSymmetry(config, transform);
 
       const actualGraphMode = answersVisible ? config.graphMode : 'blank';
       if (actualGraphMode === 'curve') {
@@ -943,6 +1001,8 @@
       kInput.value = 0;
       xStartInput.value = -4;
       xEndInput.value = 4;
+      yStartInput.value = -6;
+      yEndInput.value = 6;
       tableModeSelect.value = 'blank';
       graphModeSelect.value = 'blank';
       showPointLabels.checked = true;
@@ -963,7 +1023,7 @@
     }
 
     // ===== 事件綁定 =====
-    [aInput, hInput, kInput, xStartInput, xEndInput, tableModeSelect, graphModeSelect, showPointLabels, showAxisCheckbox, showVertexCheckbox, snapIntegersCheckbox]
+    [aInput, hInput, kInput, xStartInput, xEndInput, yStartInput, yEndInput, tableModeSelect, graphModeSelect, showPointLabels, showAxisCheckbox, showVertexCheckbox, snapIntegersCheckbox]
       .forEach((element) => {
         element.addEventListener('input', renderAll);
         element.addEventListener('change', renderAll);
